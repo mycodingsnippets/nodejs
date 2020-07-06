@@ -168,13 +168,179 @@ const server = http.createServer((req,res) => {
     }
     
     if(url === '/message' && method === 'POST'){
-        fs.writeFileSync('message.txt', 'DUMMY');
-        res.statusCode = 302;
-        res.sendHeader('Location', '/');
-        return res.end();
+        const body = [];
+        //stream and buffer concept
+        req.on('data', (chunk) => {
+            body.push(chunk);
+        });
+        req.on('end', () => {
+            const parsedBody = Buffer.concat(body).toString();
+            const message = parsedBody.split('=')[1];
+        	fs.writeFileSync('message.txt', message);    
+            res.statusCode = 302;
+        	res.sendHeader('Location', '/');
+        	return res.end();
+        });
+        //An important concept - when function is passed to a function, it doesnt run immediately as its asynchronous, instead the code after runs which may cause issue sometimes. Its event driven code execution, until and uptil the event listener doesn't gets completed, the inside function doesnt run. 
+        //One way to overcome this is by returning on the main function so that not further code after it gets executed.
     }
 })
 
 server.listen(3000);
+```
+
+**fs.readFileSync** vs **fs.readFile** -> The first one blocks the execution and acts synchronously while the latter executes asynchronously. The two haven different implementation as below and first one should only be used when file is small.
+
+```javascript
+//The third argument is executed when event file writing gets completed
+fs.writeFile('message.txt', message, (err) => {
+    res.statusCode = 302;
+    res.sendHeader('Location', '/');
+    return res.end();
+})
+```
+
+Nodejs has event driven architecture.
+
+**Modules System** - Modularising Code
+
+routes.js:
+
+```javascript
+const fs = require('fs');
+
+const requestHandler = (req, res) => {
+    const url = req.url;
+    const method = req.method;
+    
+	if(url === '/'){
+        res.write('<html>');
+        res.write('<head><title>Enter Message</title></head>');
+        res.write('<body><form action="/message" method="POST"><input type="text" name="message"><button type="submit">Submit</button></form></body>')
+        res.write('</html>');
+        return res.end();
+    }
+    
+    if(url === '/message' && method === 'POST'){
+        const body = [];
+        //stream and buffer concept
+        req.on('data', (chunk) => {
+            body.push(chunk);
+        });
+        req.on('end', () => {
+            const parsedBody = Buffer.concat(body).toString();
+            const message = parsedBody.split('=')[1];
+        	fs.writeFileSync('message.txt', message);    
+            res.statusCode = 302;
+        	res.sendHeader('Location', '/');
+        	return res.end();
+        });
+    }
+}
+
+module.exports = {
+    handler:requestHandler,
+    someText: 'Dummy Text'
+}
+```
+
+app.js:
+
+```javascript
+const http = require('http');
+const routes = require('./routes');
+
+console.log(routes.someText);
+
+const server = http.createServer(routes.handler);
+
+server.listen(3000);
+```
+
+
+
+## NPM
+
+Until now, we have been using node built in features and running them using node <filename>.
+
+We can create npm scripts to automate things and use third party packages.
+
+**BASICS**
+
+```
+npm init                 --------------> gives package.json for writing our own script
+```
+
+```javascript
+{
+    "name": "nodejs-project",
+    "version": "1.0.0",
+    "description": "Complete Node.js Guide",
+    "main": "app.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "node app.js",
+    },
+    "author":"",
+    "license":"ISC"
+}
+```
+
+```
+npm start               --------------------> runs node app
+```
+
+```javascript
+{
+    "name": "nodejs-project",
+    "version": "1.0.0",
+    "description": "Complete Node.js Guide",
+    "main": "app.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start-server": "node app.js",
+    },
+    "author":"",
+    "license":"ISC"
+}
+```
+
+```
+npm run start-server  -----------------------> doesnt run by npm start-server
+```
+
+```
+npm install nodemon --save-dev  ------------------------> reloads the app on change
+```
+
+```javascript
+{
+    "name": "nodejs-project",
+    "version": "1.0.0",
+    "description": "Complete Node.js Guide",
+    "main": "app.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "nodemon app.js",
+    },
+    "author":"",
+    "license":"ISC"
+}
+```
+
+```
+npm start               ------------------------------------> starts app using nodemon
+```
+
+
+
+**ERRORS**
+
+```
+Types Of Erros:
+
+* Syntax Errors    -----> Doesnt let an app to run and debug info gives idea
+* Runtime Errors   -----> Top of errors lets us discover the cause of error
+* Logical Errors   -----> This can be resolved only using DEBUGGING (Ide Feature). Set Breakpoints and start debugging
 ```
 
